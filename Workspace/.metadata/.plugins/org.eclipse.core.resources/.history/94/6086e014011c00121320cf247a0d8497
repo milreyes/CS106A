@@ -1,0 +1,388 @@
+/*
+ * File: Breakout.java
+ * -------------------
+ * Name:
+ * Section Leader:
+ * 
+ * This file will eventually implement the game of Breakout.
+ */
+
+import acm.graphics.*;
+import acm.program.*;
+import acm.util.*;
+
+import java.applet.*;
+import java.awt.*;
+import java.awt.event.*;
+
+public class Breakout extends GraphicsProgram {
+
+/** Width and height of application window in pixels */
+	public static final int APPLICATION_WIDTH = 400;
+	public static final int APPLICATION_HEIGHT = 600;
+
+/** Dimensions of game board (usually the same) */
+	private static final int WIDTH = APPLICATION_WIDTH;
+	private static final int HEIGHT = APPLICATION_HEIGHT;
+
+/** Dimensions of the paddle */
+	private static final int PADDLE_WIDTH = 60;
+	private static final int PADDLE_HEIGHT = 10;
+
+/** Offset of the paddle up from the bottom */
+	private static final int PADDLE_Y_OFFSET = 30;
+
+/** Number of bricks per row */
+	private static final int NBRICKS_PER_ROW = 10;
+
+/** Number of rows of bricks */
+	private static final int NBRICK_ROWS = 10;
+
+/** Separation between bricks */
+	private static final int BRICK_SEP = 4;
+
+/** Width of a brick */ 
+	private static final int BRICK_WIDTH =
+	  (WIDTH - (NBRICKS_PER_ROW - 1) * BRICK_SEP) / NBRICKS_PER_ROW;
+
+/** Height of a brick */
+	private static final int BRICK_HEIGHT = 8;
+
+/** Radius of the ball in pixels */
+	private static final int BALL_RADIUS = 10;
+
+/** Offset of the top brick row from the top */
+	private static final int BRICK_Y_OFFSET = 70;
+
+/** Number of turns */
+	private static final int NTURNS = 3;
+
+/** Delay for the ball movement */	
+	private static final double DELAY = 10;
+
+	private int rowCount = 0; //This instance variable counts the numbers of rows that have been put.
+	private GRect outerWall ; //Creates the outer wall that sets the application limit.
+	private GRect innerWall ; //Creates the inner wall that sets the game limits.
+	private GRect block ; //Creates the blocks that are used in the game to break.
+	private GRect paddle; // Instance variable for the paddle that is used to hit the ball in the game.
+	private GOval ball; // Instance variable for the ball of the game.
+	private double ballVx , ballVy ; //Instance variables for the speed of the ball.
+	private RandomGenerator rgen = RandomGenerator . getInstance() ;//Random number used for the angle that the ball will move.
+	private int blocksLeft = NBRICK_ROWS * NBRICKS_PER_ROW ; //variable used to count how many bricks are left to finish the game.
+	private GObject collider = null ; // Gets the colliding object. 
+	private GObject blockToRemove ; //This instance GObject is used to save the blocks that must be removed when the ball hits them.
+	private int turnCounter ; //This instance integer is used to count the number of turns played.
+	
+	/* Method: run() */
+/** Runs the Breakout program. */
+	
+	
+	public void run() {
+		
+		/*The run() method is divided in two main parts, setUpBreakout()
+		 * and playBreakout(). And as the name implies, these two methods 
+		 * will set up the game in order to be played and then allow the user
+		 * to play it, respectively.
+		 */
+		
+		
+		setUpBreakout();
+		
+		/*This method allows the program to register mouse movements.  
+		 * */
+		
+		addMouseListeners();
+		
+		playBreakout();
+		
+	
+	}
+
+	/*This method sets up the game so that it can begin.
+	 * */
+	private void setUpBreakout(){
+		
+		createField(); //This method creates the field where the game is going to be played.
+		createBlocks(); //This method creates the blocks on the field.
+		createPaddle(); //This method creates the paddle to hit the ball towards the blocks.
+		createBall(); //This method creates the ball that is going to be used in the game.
+		
+	}
+	
+	private void createField(){
+		
+	int centerOfScreenX = getWidth() / 2; //Center of the screen in the X direction.
+	int centerOfScreenY = getHeight() / 2; //Center of the screen in the Y direction.
+		
+		outerWall = new GRect(centerOfScreenX - (WIDTH / 2) - (BRICK_SEP / 2), centerOfScreenY - (HEIGHT / 2) - (BRICK_SEP / 2), WIDTH + BRICK_SEP, HEIGHT + BRICK_SEP);
+		add (outerWall);
+		innerWall = new GRect(centerOfScreenX - WIDTH / 2, centerOfScreenY - HEIGHT / 2, APPLICATION_WIDTH, HEIGHT);
+		add (innerWall);
+	}
+	
+	private void createBlocks(){
+		
+		/*This method creates the blocks that are going to be shown on the screen*/
+		
+		int centerOfScreenX = getWidth() / 2; //Center of the screen in the X direction.
+		int centerOfScreenY = getHeight() / 2; //Center of the screen in the Y direction.
+		int startingCoordYForRows = centerOfScreenY - HEIGHT/2 + BRICK_Y_OFFSET; // Y coordinates for first row.
+		int startingCoordXForRows = centerOfScreenX - (WIDTH / 2) + (WIDTH - ( ( NBRICKS_PER_ROW * BRICK_WIDTH ) + ( ( NBRICKS_PER_ROW - 1 ) *BRICK_SEP ) ) ) / 2;
+		
+		for( ; rowCount < NBRICK_ROWS ; rowCount++ ){
+			
+			
+			
+			/*This method is to create the line of blocks according to the parameters of starting X location
+			 * starting Y location and the color that is required for that line of blocks.*/
+			
+			makeRowOfBlocks(startingCoordXForRows, startingCoordYForRows );
+			
+			
+			/*The following line allows the row to change its location from row to row.*/
+			
+			startingCoordYForRows = startingCoordYForRows + BRICK_HEIGHT + BRICK_SEP;
+			
+			/*This is restarting every time the loop starts because the rows in the X location always start from the same point.*/
+			
+			startingCoordXForRows = centerOfScreenX - (WIDTH / 2) + (WIDTH - ( ( NBRICKS_PER_ROW * BRICK_WIDTH ) + ( ( NBRICKS_PER_ROW - 1 ) *BRICK_SEP ) ) ) / 2;
+		}
+		
+	}
+
+	private void makeRowOfBlocks ( int startingCoordXForRows, int startingCoordYForRows ){
+		
+		for(int brick = 0 ; brick < NBRICKS_PER_ROW ; brick++ ){
+			
+			block = new GRect(startingCoordXForRows, startingCoordYForRows, BRICK_WIDTH , BRICK_HEIGHT );
+			
+			/*The following cascading if changes the color of each row in accordance with the row number.
+			 * */
+			if(rowCount <= 1){
+				block.setColor(Color.RED);
+				block.setFilled(true);
+				block.setFillColor(Color.RED);
+			} else if(rowCount <= 3){
+				block.setColor(Color.ORANGE);
+				block.setFilled(true);
+				block.setFillColor(Color.ORANGE);
+			}else if(rowCount <= 5){
+				block.setColor(Color.YELLOW);
+				block.setFilled(true);
+				block.setFillColor(Color.YELLOW);
+			}else if(rowCount <= 7){
+				block.setColor(Color.GREEN);
+				block.setFilled(true);
+				block.setFillColor(Color.GREEN);
+			}else if(rowCount <= 9){
+				block.setColor(Color.CYAN);
+				block.setFilled(true);
+				block.setFillColor(Color.CYAN);
+			}
+		
+			add (block);
+			startingCoordXForRows = startingCoordXForRows + BRICK_WIDTH + BRICK_SEP; //Changes the X coordinate for the next brick.
+			
+		}
+	
+	}
+	
+
+	/*This method creates the paddle that is going to be used to hit the ball towards the blocks.
+	 * */
+	
+	private void createPaddle(){
+		
+		int centerOfScreenX = getWidth() / 2; //Center of the screen in the X direction.
+		int centerOfScreenY = getHeight() / 2; //Center of the screen in the Y direction.
+		
+		paddle = new GRect( (centerOfScreenX - PADDLE_WIDTH / 2) , (centerOfScreenY + HEIGHT / 2 - PADDLE_Y_OFFSET ) , PADDLE_WIDTH , PADDLE_HEIGHT );
+		paddle . setFilled(true);
+		add (paddle);
+		
+	}
+
+	/*This method creates the ball that is going to be used for playing
+	 * */
+	
+	private void createBall(){
+		
+		int centerOfScreenX = getWidth() / 2; //Center of the screen in the X direction.
+		int centerOfScreenY = getHeight() / 2; //Center of the screen in the Y direction.
+		
+		ball = new GOval(centerOfScreenX - BALL_RADIUS , centerOfScreenY - BALL_RADIUS , 2 * BALL_RADIUS , 2 * BALL_RADIUS); //creates the ball and locates it in the middle of the screen
+		ball . setFilled (true);
+			
+	}
+	
+	/*This method will make the paddle follow in the X axis the movements of the mouse.
+	 * */
+	
+	public void mouseMoved ( MouseEvent e ){
+		
+		int centerOfScreenX = getWidth() / 2; //Center of the screen in the X direction.
+		int centerOfScreenY = getHeight() / 2; //Center of the screen in the Y direction.
+		
+		/*This if statement makes sure that the paddle will not get out of the game zone.
+		 * */
+		
+		if (e . getX() > (centerOfScreenX - WIDTH / 2) && e . getX() < (centerOfScreenX + WIDTH / 2 - PADDLE_WIDTH) ){
+			
+			/*This is command sets the location of the paddle in accordance with the position of the mouse.
+			 * */
+			
+			paddle . setLocation ( e . getX() , (centerOfScreenY + HEIGHT / 2 - PADDLE_Y_OFFSET - 150 ) ); // TESTING 
+			
+			
+		}
+	
+	}
+	
+	/*This method starts the game of breakout.
+	 * */
+	
+	private void playBreakout(){
+		
+		
+		for (turnCounter = 0 ; turnCounter < NTURNS ; turnCounter++){ //This loop is the one that will count the number of turns used by the player.
+
+			add (ball); //Adds the ball to the screen.
+			println ( " Click to start game! " ) ;
+			waitForClick(); //To start the game the user must click the screen.
+			moveBall(); //Moves the ball around the screen for the first time.
+			
+			while (true){
+				
+				checkForCollisions(); // Checks if the ball hits any block, wall or the paddle.
+				ball . move (ballVx , ballVy ) ; // Keeps the ball moving.
+				pause(DELAY); // Pauses the game enough time so that the player can keep up with the game.
+				
+				if( gameover() ) break ; //This if statement checks if the game is over, in order to start another turn.
+				
+			}
+			
+			
+		}
+		
+	}
+
+	/*This method sets the ball to start to move.
+	 * */
+	private void moveBall(){
+		
+		rgen . setSeed (1) ; //for testing purposes the seed for the random number is set to 1.
+		
+		ballVy = 5.0 ; //Assigns a speed to the ball in the Y axes.
+		ballVx = rgen . nextDouble (1.0 , 3.0) ; // Assigns a speed to the ball in the X axes.
+		if (rgen . nextBoolean(0.5) ) ballVx = -ballVx; // Changes the speed the ball to be negative half of the time.
+		
+		ball . move (ballVx , ballVy) ; //makes the ball move around the screen.
+		
+	}
+
+	/*This method checks for collisions and makes sure that the ball behaves as it should when the ball hits its targets.
+	 * */
+	private void checkForCollisions(){
+		
+		collider = getCollidingObject () ; // Gets the colliding object.
+		
+		if ( collider == paddle ) paddle . setColor (rgen . nextColor()) ; //TESTING
+		
+		
+		if (ball . getX() <= BRICK_SEP || ball . getX() >= getWidth()- 2 * BALL_RADIUS - BRICK_SEP ){ 
+			//ballVy = - ballVy ; //Changes the Y velocity of the ball in opposite direction.
+			ballVx = - ballVx ; //Changes the X velocity of the ball in opposite direction.
+			//ball . move ( ballVx , ballVy ) ; //This command makes the ball move in the new direction.
+		}
+		
+		if (ball . getY() <= BRICK_SEP || ball . getY() >= getHeight() - 2 * BALL_RADIUS - BRICK_SEP ){ // TESTING
+			ballVy = - ballVy ; //Changes the Y velocity of the ball in opposite direction.
+			//ballVy = - ballVy ; //Changes the X velocity of the ball in opposite direction.
+			//ball . move ( ballVx , ballVy ) ; //This command makes the ball move in the new direction.
+		}
+		
+		if (collider == paddle){
+			
+			ballVy = - ballVy ; //Changes the Y velocity of the ball to move up.
+			ball . move ( ballVx , ballVy ) ; //This command makes the ball move in the new direction.
+		}
+		
+		if (collider . getHeight() == BRICK_HEIGHT && collider . getWidth() == BRICK_WIDTH){ //This if statement makes sure that the ball hit a brick and assigns it to block to collider.
+			
+			blockToRemove = collider ;
+			collider = blockToRemove ; //Assigns block to collider.
+		
+		}
+		
+		if ( collider == blockToRemove ) ball . setColor (rgen . nextColor () ) ; //TESTING
+		
+		if (collider == blockToRemove ) {
+			ballVy = - ballVy ; //Changes the Y velocity of the ball to in opposite direction.
+			remove (blockToRemove) ; //Removes the block from the game field.
+			//introduce counter here to determine when the game is won.
+			blocksLeft-- ; // Counter of how many blocks are left to determine when the game is won.
+			//ball . move ( ballVx , ballVy ) ; //This command makes the ball move in the new direction. 
+		}
+		
+		collider = null ; //This command empties the collider variable so that it is ready to receive another type of GObject.
+		
+	}
+	
+	private GObject getCollidingObject () {
+		
+		//GObject collider = null ;
+		
+		
+		collider = getElementAt (ball . getX() , ball . getY() - 1 ) ; // Checks if the ball has hit anything on the top left corner.
+	
+	
+		if ( collider == innerWall ) {
+			collider = getElementAt (ball . getX() + 2 * BALL_RADIUS , ball . getY() - 1 ) ; //Checks if the ball has hit anything on the top right corner.
+		} 
+		
+		if (collider == innerWall) {
+			collider = getElementAt (ball . getX() , ball . getY() + 2 * BALL_RADIUS + 1 ) ; //Checks if the ball has hit anything on the bottom left corner.
+		}  
+		
+		if (collider == innerWall) {
+			collider = getElementAt (ball . getX() + 2 * BALL_RADIUS , ball . getY() + 2 * BALL_RADIUS + 1 ) ; //Checks if the ball has hit anything on the bottom right corner.
+		}	
+		
+		return collider ; //Returns the collider.
+	}
+	
+	private boolean gameover() {
+		
+		int gameOver = 0 ; 
+		
+		if (blocksLeft == 0){
+			
+			remove(ball) ; //Removes the ball from play
+			GLabel winMessage = new GLabel ("You win, you rule, you are the best!") ; 
+			add (winMessage , getWidth() / 2 - (winMessage . getWidth() /2) , getHeight() / 2 - (winMessage . getAscent() / 2) ) ; //Displays the message that the player has won.
+			gameOver = 1 ; //The game is over.
+		}
+		
+		if (ball . getY() >= ( HEIGHT - PADDLE_Y_OFFSET )) {
+			
+			gameOver = 1 ; //The game is over.
+			remove(ball) ; //Removes the ball from play
+			
+			if (turnCounter == NTURNS){
+	
+				GLabel loseMessage = new GLabel ("You lost! You loser! MUAHAHAHA! ") ; 
+				add (loseMessage , getWidth() / 2 - (loseMessage . getWidth() /2) , getHeight() / 2 - (loseMessage . getAscent() / 2) ) ; //Displays the message that the player has lost.	
+			
+			}
+		
+		}
+		
+		if (gameOver == 1){ 
+			return true ; //This checks when the ball crosses below the paddle and returns true to gameover() caller.
+		} else return false ; 
+		
+	}
+	
+
+}
+

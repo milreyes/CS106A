@@ -1,0 +1,258 @@
+/*
+ * File: Hangman.java
+ * ------------------
+ * This program will eventually play the Hangman game from
+ * Assignment #4.
+ */
+
+import acm.graphics.*;
+import acm.program.*;
+import acm.util.*;
+
+import java.awt.*;
+import java.lang.*;
+import java.util.*;
+
+public class Hangman extends ConsoleProgram {
+
+	private static final int GUESSES_LEFT = 8 ; //Number of guesses available for the player.
+
+	/*This command is to add the canvas of the man being hung. 
+	 * */
+	public void init() {
+
+		canvas = new HangmanCanvas() ; 
+		add (canvas) ; 
+	}
+
+	/*This is method runs the game. There is a while loop that asks the player if they want to keep playing when the game is over.
+	 * */
+	
+	public void run() {
+
+		//rgen . setSeed(1); //Testing and debugging. 
+
+		while( keepPlaying ){
+
+			playHangman(); //Allows the player to play Hangman.
+
+			if ( ! keepPlaying ){
+				break;
+			}
+		}
+	}
+
+	/*This method runs each game with one word. It restarts every time the game is over if the player wants to play again.
+	 * */
+	
+	private void playHangman(){
+
+		guessesLeft = GUESSES_LEFT ; 
+		println("Welcome to Hangman!") ; 
+		userWord = "" ; //This is the word that the user is seeing. It shows dashes for unguessed letters.
+		charsIntroduced = new ArrayList <Character>() ; //Creates an array list to store the guesses of the player to prevent them from introducing the same characters again.
+		word = "" ; //This is the word that the user must guess.
+		canvas . reset() ; //This resets the hangman canvas for every new word.
+		word = getWord() ; //Gets the word to be used, for this game.
+
+		for (int i = 0 ; i < word . length() ; i++) {
+
+			userWord += "-" ; //This process is to make the string that the user will see. 
+
+		}
+
+		canvas . displayWord (userWord) ; //Displays the word on the hangman canvas.
+		
+		while( !gameOver() ){
+
+			showStatus() ; //Shows the user how the game is at the moment.
+			char legalGuess = promptUserForLetter(); //Prompts the user for a letter in the word.
+			boolean goodGuess = compareLetterToWord( legalGuess , word ); // This method returns true if the letter is in word or false if it's not.
+			resolveTurn(goodGuess , legalGuess); //This method resolves the turn by adding the letter to the word if it's correct, or by adding a body part to the hangman.
+
+		}
+
+	}
+
+	private String getWord (){
+
+		int random = rgen . nextInt (0 , lexicon . size () ) ; //creates an integer at random to be used as an index to find a word in the lexicon.
+		String word = lexicon . get ( random ) ; //gets a word from the lexicon.
+		return word ; //returns the word that was chosen at random from the hangman lexicon.
+
+	}
+
+	private void showStatus () {
+
+		println("The word now looks like this: " + userWord) ; //Shows the user how the userWord looks like.
+
+		if (guessesLeft > 1 ){ 
+			println ("You have "+ guessesLeft + " guesses left."); //Shows the user how many guesses are left.
+		} else { 
+			println("You have only ONE guess left."); //Message when there's only one guess left.
+		}
+	}
+
+	
+	 private char promptUserForLetter () { //This method asks the user for a letter to be compared with the word in the game.
+
+		boolean legal = false;
+		char legalGuess = ' ' ; 
+		String guess = " ";
+
+		while ( !legal ){
+
+			guess = readLine("Your Guess: ") ; 
+			int length = guess . length();	
+
+			if(length > 1) { //Checks that the user only introduced one character.
+
+				println("Just ONE letter. Try again.") ;
+
+			} else {
+
+				legalGuess = guess . charAt(0) ; //Assigns the character to a char variable.
+
+				if ( Character.isLetter(legalGuess) ){ //Checks if the character is a letter.
+
+					legal = !checkIfIntroducedBefore( legalGuess ) ; //This method checks if the letter has been introduced before and gives a heads up to the user.
+
+					if ( !legal ){
+						println( "Introduce a new character." ) ; //Prompts the user for a new character.
+					}
+				} else {
+
+					println("Not a legal character. Please introduce a letter.") ; //Prompts the user for a letter.
+
+				}
+
+			}
+
+		}
+
+		legalGuess = Character . toUpperCase (legalGuess) ; //Makes the character to be capital.
+		//println("check " + legalGuess) ; //TESTING
+		return legalGuess ; //returns the legal guess.
+	}
+
+
+	private boolean checkIfIntroducedBefore ( char guess ) { //This method checks if the letter has been introduced before and returns false or true accordingly.
+
+		boolean introduced = false ; //It is assumed that the character is new.
+		int size = charsIntroduced . size() ; 
+
+		for (int i = 0 ; i < size ; i++ ) {
+
+			if (guess == charsIntroduced . get (i) ){
+				introduced = true ;
+				println ("You have introduced this character before.") ; //Tells the user this is a character previously introduced.
+				break;
+			}
+		}
+
+		if ( !introduced ) {
+
+			charsIntroduced . add (guess) ; //Adds the character to the Array List to be considered in future checks.
+
+		}
+		return introduced ; //Returns the boolean value.
+	}
+
+
+
+	private boolean compareLetterToWord (char letter , String word ) { //This method is to check whether the letter is present in the word and returns true or false accordingly.
+
+		boolean letterIsPresent = false ; 
+
+		for (int i = 0 ; i < word.length(); i++){
+
+			if (word . charAt(i) == letter) {
+				letterIsPresent = true;
+				addToUserWord( i , letter ) ; //This changes the word that is being displayed to the user, to provide feedback on what he or she has answered correctly.
+			}
+
+		}
+
+		if ( !letterIsPresent ){
+			println("There are no "+ letter + "\'s in the word.") ; //Tells the user that the letter is not present.
+	
+		}
+		//println("check compare letter to word " + letterIsPresent ) ; //TESTING
+		return letterIsPresent ; 
+
+	}
+
+	private void resolveTurn( boolean goodGuess , char legalGuess){ //This method is to finalize the process of each time the user inputs a letter. 
+
+		if (goodGuess == true){
+			println("That guess is correct!") ; 
+		} else {
+			guessesLeft-- ; //Subtract one from the guesses left for the user.
+			canvas . noteIncorrectGuess (legalGuess , guessesLeft , word ) ; //The canvas changes if the user guessed something wrong.
+		}
+		//println("check resolve turn " + guessesLeft) ; //TESTING
+	}
+
+	private void addToUserWord (int positionOfLetter , char letter ) {
+
+		String newUserWord = "" ; //This will make the new user word, with the added letter. 
+		ArrayList<Character> word = new ArrayList<Character>() ; //Makes the userWord an array so that it can be manipulated.
+
+		for (int i = 0 ; i < userWord . length() ; i++ ){
+			word . add (i , userWord . charAt(i)  ) ; //This command makes the Array List have the same characters in the same indexed position as the userWord.
+			//println( "check " + word . get(i) ) ; //TESTING
+		}
+
+		word . remove (positionOfLetter) ; //This commands removes the element that letter will substitute.
+		word . add ( positionOfLetter , letter ) ; //Adds the letter to the right position.
+
+
+		for (int j = 0 ; j < userWord . length() ; j++ ) {
+
+			newUserWord += word . get (j) ; //This adds the values of the array list back to the string.
+			//println("check " + newUserWord) ; //TESTING
+		}
+		//println("check add to user word " + userWord) ; //TESTING
+		userWord = newUserWord ;
+		canvas . displayWord (userWord) ;
+	}
+
+	private boolean gameOver() { //This method checks when the game is over because of different conditions.
+
+		boolean gameOver = false ; //The game is not over at the beginning.
+		keepPlaying = false ; //The player might not want to keep on playing. 
+
+		if (guessesLeft == 0) {
+			gameOver = true ; //If there are no guesses left, then the game is over.
+			println ("You're completely hung.") ; 
+			println("The word was: " + word ) ;
+			println("You lose.") ;
+		}
+
+		if (word . compareTo ( userWord ) == 0){
+			gameOver = true ; 
+			println("You guessed the word " + word + " !" ) ; 
+			println("You win. You rule. You are the best!") ;
+		}
+
+		if (gameOver){ //This prompts the user if they want to keep on playing.
+			println ("Guess a letter if you would like to play again.") ;
+			char guess = promptUserForLetter() ;
+			if (Character . isLetter(guess) ) {
+				
+				keepPlaying = true ;
+			
+			}
+		}
+		return gameOver ; //Returns the value of gameOver to the game loop.
+	}
+	private boolean keepPlaying = true ; //Boolean that controls whether the players wants to keep on playing
+	private ArrayList<String> lexicon = HangmanLexicon . createWordList() ; // This command creates a word list and adds it to the lexicon.
+	private String word ; //This is the word that is pulled out of the lexicon to be used for the game.
+	private String userWord ; //This is the word that is displayed to the user while trying to find out the right word.
+	private ArrayList<Character> charsIntroduced ; //This array list saves the characters introduced by the user.
+	private	int guessesLeft ; //Instance variable to count the number of guesses left for the user. Initialized at the beginning of each game.
+	private RandomGenerator rgen = RandomGenerator . getInstance() ; //Instance variable to choose a word at random from the lexicon.
+	//private int wordCount = HangmanLexicon . getWordCount() ; 
+	private HangmanCanvas canvas ; //Adds the canvas of the man being hung.
+}
